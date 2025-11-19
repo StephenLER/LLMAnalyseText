@@ -58,8 +58,6 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
-
 input_path = "/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/data_original/884126_2024_2025_ohlcv.csv"
 output_path = "/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/data/884126_2025_with_ta.csv"
 
