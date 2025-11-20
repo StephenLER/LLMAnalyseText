@@ -3,10 +3,11 @@ import json
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
+import tempfile
 
 # ---------- 基础配置 ----------
 client = OpenAI(
-    api_key='',
+    api_key='sk-9b4b1fb4b60d4a69b258ebcb2b5a122b',
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
@@ -23,6 +24,127 @@ MAX_WORKERS = 1
 
 
 # ---------- 工具函数 ----------
+
+def validate_result(obj):
+    """
+    检查一条结果是否完全符合预期格式。
+    返回 (ok: bool, err_msg: str)
+    """
+    if not isinstance(obj, dict):
+        return False, "顶层不是 JSON 对象"
+
+    expected_top_keys = {"trade_date", "concept", "summary", "scores", "score_reasons"}
+    actual_top_keys = set(obj.keys())
+    if not actual_top_keys.issuperset(expected_top_keys - {"trade_date"}):
+        return False, f"顶层字段缺失，期望至少包含 {expected_top_keys}，实际 {actual_top_keys}"
+
+    # concept
+    if not isinstance(obj.get("concept", ""), str):
+        return False, "concept 必须是字符串"
+
+    # summary
+    summary = obj.get("summary")
+    if not isinstance(summary, dict):
+        return False, "summary 必须是对象"
+    expected_summary_keys = {"正面事件", "负面事件", "综合分析"}
+    if set(summary.keys()) != expected_summary_keys:
+        return False, f"summary 字段必须且仅包含 {expected_summary_keys}"
+    for k in expected_summary_keys:
+        if not isinstance(summary[k], str):
+            return False, f"summary['{k}'] 必须是字符串"
+
+    # scores
+    scores = obj.get("scores")
+    if not isinstance(scores, dict):
+        return False, "scores 必须是对象"
+    expected_score_keys = {
+        "overall_sentiment",
+        "overall_importance",
+        "overall_impact",
+        "overall_duration",
+        "news_consistency",
+    }
+    if set(scores.keys()) != expected_score_keys:
+        return False, f"scores 字段必须且仅包含 {expected_score_keys}"
+
+    s = scores["overall_sentiment"]
+    if not isinstance(s, (int, float)):
+        return False, "overall_sentiment 必须是数值"
+    # if s < -1.0 or s > 1.0:
+    #     return False, "overall_sentiment 必须在 [-1, 1] 区间内"
+
+    for k in ["overall_importance", "overall_impact", "overall_duration", "news_consistency"]:
+        v = scores[k]
+        if not isinstance(v, int):
+            return False, f"{k} 必须是整数"
+        # if v < 0 or v > 10:
+        #     return False, f"{k} 必须在 [0, 10] 区间内"
+
+    # score_reasons
+    reasons = obj.get("score_reasons")
+    if not isinstance(reasons, dict):
+        return False, "score_reasons 必须是对象"
+    if set(reasons.keys()) != expected_score_keys:
+        return False, f"score_reasons 字段必须且仅包含 {expected_score_keys}"
+    for k in expected_score_keys:
+        if not isinstance(reasons[k], str):
+            return False, f"score_reasons['{k}'] 必须是字符串"
+
+    return True, ""
+
+def clean_output_file(path: str):
+    """
+    读一遍 output_path：
+    - 能解析且 validate_result 通过的行 → 写入临时文件
+    - 其他行 → 视为坏行，丢弃
+    最后用临时文件覆盖原文件。
+
+    返回 (total_lines, good_lines, bad_lines)
+    """
+    if not os.path.exists(path):
+        print(f"[CLEAN] 结果文件不存在：{path}")
+        return 0, 0, 0
+
+    total = 0
+    good = 0
+    bad = 0
+
+    # 用临时文件避免中途崩掉导致文件空了
+    dir_name = os.path.dirname(path) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix="clean_", suffix=".jsonl")
+    os.close(fd)
+
+    with open(path, "r", encoding="utf-8") as f_in, \
+         open(tmp_path, "w", encoding="utf-8") as f_out:
+
+        for line in f_in:
+            line = line.strip()
+            if not line:
+                continue
+            total += 1
+
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError as e:
+                bad += 1
+                print(f"[CLEAN] JSON 解析失败，跳过一行：{e}")
+                print(f"[CLEAN] 该行前 200 字符：{line[:200]}")
+                continue
+
+            ok, err = validate_result(obj)
+            if not ok:
+                bad += 1
+                print(f"[CLEAN] 校验不通过，跳过 trade_date={obj.get('trade_date')}：{err}")
+                continue
+
+            # 合法行写入临时文件
+            f_out.write(json.dumps(obj, ensure_ascii=False) + "\n")
+            good += 1
+
+    # 用清理后的文件替换原文件
+    os.replace(tmp_path, path)
+    print(f"[CLEAN] 清理完成：总行数={total}, 合法={good}, 删除坏行={bad}")
+    return total, good, bad
 
 def load_done_dates(path: str):
     """
@@ -261,12 +383,13 @@ def main():
     print(f"[INFO] 需要新处理的交易日数量：{len(tasks)}")
     if not tasks:
         print("[INFO] 没有新的任务需要处理。")
-        # 即使没有新任务，仍然可以再跑一遍排序
-        sort_result_file(output_path, sorted_output_path)
+        # 即使没有新任务，也可以再跑一遍清理+排序
+        total, good, bad = clean_output_file(output_path)
+        if bad == 0:
+            sort_result_file(output_path, sorted_output_path)
         return
 
     # 4. 多线程调用 + 主线程统一写文件
-    #    文件用追加模式 "a"，不存在会自动创建
     with open(output_path, "a", encoding="utf-8") as f_out:
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_date = {
@@ -290,14 +413,21 @@ def main():
                     "score_reasons": llm_result.get("score_reasons", {}),
                 }
 
-                # 主线程写入，避免写入冲突
                 f_out.write(json.dumps(out_item, ensure_ascii=False) + "\n")
                 f_out.flush()
                 print(f"[WRITE] 已写入 {trade_date}")
 
     print(f"\n[INFO] 全部任务完成，结果已追加写入：{output_path}")
 
-    # 5. 最后按 trade_date 排序并生成一个干净的排序结果文件
+    # 5. 跑完后整体检查一次结果文件，删除坏行
+    total, good, bad = clean_output_file(output_path)
+
+    if bad > 0:
+        print(f"[WARN] 检测到 {bad} 条不合规记录，已从 {output_path} 删除。")
+        print("[WARN] 建议重新运行脚本一次，断点续跑会自动处理缺失的 trade_date。")
+        return
+
+    # 6. 没有坏行，直接排序
     sort_result_file(output_path, sorted_output_path)
 
 
