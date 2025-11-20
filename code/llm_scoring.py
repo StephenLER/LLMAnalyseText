@@ -5,14 +5,14 @@ from openai import OpenAI
 
 # ---------- 基础配置 ----------
 client = OpenAI(
-    api_key='sk-9b4b1fb4b60d4a69b258ebcb2b5a122b',
+    api_key=os.getenv("DASHSCOPE_API_KEY"),
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
 concept_name = "机器人"
 
-input_path = "data/884126_2025_news_by_tradedate.jsonl"      # 上一步输出的文件
-output_path = "data/884126_2025_scores.jsonl"          # 本步模型打分结果
+input_path = "data/884126_2025_news_by_tradedate.jsonl"
+output_path = "data/884126_2025_robot_scores.jsonl"
 
 # ---------- 工具函数 ----------
 
@@ -76,8 +76,10 @@ def build_prompt(trade_date, news_list):
     return prompt
 
 def call_llm(trade_date, news_list):
-    """调用大模型并返回解析后的 dict"""
+    """流式调用大模型：一边打印一边累积结果，最后解析 JSON"""
     prompt = build_prompt(trade_date, news_list)
+
+    print(f"\n==================== {trade_date} 开始请求模型 ====================")
     completion = client.chat.completions.create(
         model="qwen3-max",
         messages=[
@@ -88,27 +90,37 @@ def call_llm(trade_date, news_list):
             {"role": "user", "content": prompt},
         ],
         temperature=0.1,
-        stream=False,   # 这里用非流式，方便拿完整 JSON
+        stream=True,   # 开启流式
     )
-    text = completion.choices[0].message.content.strip()
 
-    # 有时候模型会包一层 ```json ...```，这里简单处理一下
+    full_text = ""
+    for chunk in completion:
+        delta = chunk.choices[0].delta
+        if delta and delta.content:
+            piece = delta.content
+            full_text += piece
+            # 中间过程流式打印出来
+            print(piece, end="", flush=True)
+
+    print(f"\n==================== {trade_date} 输出结束，开始解析 JSON ====================")
+
+    text = full_text.strip()
+    # 处理可能出现的 ```json 包裹
     if text.startswith("```"):
         text = text.strip("`")
         text = text.replace("json\n", "").replace("JSON\n", "").strip()
 
-    result = json.loads(text)  # 如果解析失败会抛异常
+    result = json.loads(text)  # 如果 json 不合法会抛异常
     return result
 
 # ---------- 主流程 ----------
 
-# 读入聚合后的 jsonl
 df_daily = pd.read_json(input_path, lines=True)
 
 outputs = []
 
 for _, row in df_daily.iterrows():
-    trade_date = row["trade_date"]        # 字符串，如 "2025-01-06"
+    trade_date = row["trade_date"]        # 如 "2025-01-06"
     news_list = row["news_list"]          # list[dict]
 
     try:
@@ -117,7 +129,7 @@ for _, row in df_daily.iterrows():
         print(f"[ERROR] date={trade_date}, 调用或解析失败：{e}")
         continue
 
-    # 在程序里补上日期，不要求模型返回
+    # 在程序里补上日期
     out_item = {
         "trade_date": trade_date,
         "concept": llm_result.get("concept", concept_name),
@@ -131,4 +143,4 @@ with open(output_path, "w", encoding="utf-8") as f:
     for item in outputs:
         f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-print(f"已保存评分结果到：{output_path}")
+print(f"\n全部完成，已保存评分结果到：{output_path}")
