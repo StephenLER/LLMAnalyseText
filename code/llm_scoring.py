@@ -285,8 +285,9 @@ def main():
                 out_item = {
                     "trade_date": trade_date,
                     "concept": llm_result.get("concept", concept_name),
-                    "summary": llm_result.get("summary", ""),
+                    "summary": llm_result.get("summary", {}),
                     "scores": llm_result.get("scores", {}),
+                    "score_reasons": llm_result.get("score_reasons", {}),
                 }
 
                 # 主线程写入，避免写入冲突
