@@ -25,7 +25,7 @@ CSV_PATH = Path("/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/1125
 
 # 设置 OpenAI 客户端
 client = OpenAI(
-    api_key="sk-4442f7376d3d4740848837c522ab62a9",  # API Key
+    api_key="",  # API Key
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 MODEL_NAME = "qwen3-235b-a22b-thinking-2507"
