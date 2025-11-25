@@ -11,7 +11,7 @@
 2. 价格与技术指标：
    - 价格/成交量特征（amt,close, high, low, open, volume,open_net_active_buy_amt,close_net_active_buy_amt,main_net_inflow_amt,
    open_main_net_inflow_amt,net_active_buy_amt,close_main_net_inflow_amt,open_net_active_buy_amt_ratio,close_net_active_buy_amt_ratio,
-  main_net_inflow_amt_ratio, open_main_net_inflow_amt_ratio,net_active_buy_amt_ratio,close_main_net_inflow_amt_ratio,dq_amtturnover,turn）。
+   main_net_inflow_amt_ratio, open_main_net_inflow_amt_ratio,net_active_buy_amt_ratio,close_main_net_inflow_amt_ratio,dq_amtturnover,turn）。
    - 技术指标（例如：SMA_5, SMA_20, EMA_10, MOM_3, MOM_10, RSI_14, MACD,
      MACD_Signal, BB_Lower, BB_Upper, OBV 等）。
 
