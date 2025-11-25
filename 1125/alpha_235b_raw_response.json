@@ -1,0 +1,254 @@
+{
+  "alphas": [
+    {
+      "name": "alpha1",
+      "expression": "df['overall_sentiment'] * df['overall_importance']",
+      "explanation": "(1) 使用整体情绪和重要性因子。情绪反映新闻方向（正值利好），重要性衡量事件分量（数值越大事件越关键）。捕捉高重要性利好/利空新闻对市场的驱动效应，强调事件分量放大情绪影响。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 和 overall_importance 均以正号出现，因此情绪越乐观或事件越重要，alpha 值越大。(4) 该因子是简单的线性乘积，整体对输入变量呈近似线性关系。"
+    },
+    {
+      "name": "alpha2",
+      "expression": "df['overall_sentiment'] * df['overall_impact']",
+      "explanation": "(1) 使用整体情绪和影响强度因子。情绪决定新闻方向，影响强度量化潜在冲击幅度（不区分方向）。捕捉情绪方向与冲击强度的结合，高冲击事件更能驱动价格波动。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 以正号出现（情绪越利好，alpha 越大），overall_impact 以正号出现（冲击越强，alpha 越大）。(4) 该因子为线性乘积，结构简单且近似线性。"
+    },
+    {
+      "name": "alpha3",
+      "expression": "df['overall_sentiment'] * df['overall_duration']",
+      "explanation": "(1) 使用整体情绪和影响持续性因子。情绪提供方向信号，持续性衡量影响时长（数值越大越持久）。捕捉长期叙事驱动的持续性趋势，避免短期噪音干扰。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 和 overall_duration 均以正号出现，因此情绪越利好或影响越持久，alpha 值越大。(4) 该因子是线性组合，整体对输入变量呈近似线性关系。"
+    },
+    {
+      "name": "alpha4",
+      "expression": "df['overall_sentiment'] * df['news_consistency']",
+      "explanation": "(1) 使用整体情绪和新闻一致性因子。情绪反映方向，一致性衡量叙事统一程度（高值表示新闻高度一致）。捕捉市场共识强化情绪效应的场景，高一致性减少不确定性。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 和 news_consistency 均以正号出现，因此情绪越乐观或叙事越一致，alpha 值越大。(4) 该因子为线性乘积，结构线性且无阈值处理。"
+    },
+    {
+      "name": "alpha5",
+      "expression": "df['fcast_ret']",
+      "explanation": "(1) 直接使用预计收益因子。fcast_ret 是对当日涨跌幅的主观预估打分（高值对应大涨预期）。捕捉市场主观预期对短期价格的影响，反映新闻综合判断。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) fcast_ret 以正号出现，因此预估收益越高，alpha 值越大。(4) 该因子是原始输入，完全线性且无非线性变换。"
+    },
+    {
+      "name": "alpha6",
+      "expression": "df['overall_sentiment'] * df['MOM_10']",
+      "explanation": "(1) 使用整体情绪和10日动量因子。情绪提供新闻方向信号，动量捕捉中期价格趋势强度。捕捉情绪与现有趋势共振的强化效应，利好情绪放大上涨动量。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 和 MOM_10 均以正号出现，因此情绪越乐观或动量越强，alpha 值越大。(4) 该因子为线性乘积，整体近似线性，但动量本身隐含非线性历史路径。"
+    },
+    {
+      "name": "alpha7",
+      "expression": "(df['close'] - df['SMA_20']) / df['SMA_20']",
+      "explanation": "(1) 使用收盘价和20日均线。价格相对均线位置反映短期趋势方向（正值在均线上方）。捕捉趋势跟随行为，价格在均线上方时延续上涨概率高。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) close 以正号出现（价格越高，alpha 越大），SMA_20 以负号出现在分母（均线越低，alpha 越大）。(4) 该因子是线性比率，结构简单且近似线性。"
+    },
+    {
+      "name": "alpha8",
+      "expression": "50 - df['RSI_14']",
+      "explanation": "(1) 使用14日相对强弱指数。RSI_14 衡量超买超卖状态（高值超买，低值超卖）。捕捉均值回归机会，超卖区域（RSI低）预期价格反弹。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) RSI_14 以负号出现，因此 RSI 越低（越超卖），alpha 值越大。(4) 该因子为线性变换，整体线性，但 RSI 本身基于非线性价格变化计算。"
+    },
+    {
+      "name": "alpha9",
+      "expression": "df['MACD'] - df['MACD_Signal']",
+      "explanation": "(1) 使用MACD主线与信号线。MACD柱状体反映趋势动量变化（正值表示金叉）。捕捉趋势加速信号，正值扩大时上涨动能增强。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) MACD 以正号出现（主线越高，alpha 越大），MACD_Signal 以负号出现（信号线越低，alpha 越大）。(4) 该因子是线性差值，结构线性，但 MACD 指标本身具有指数平滑的非线性特性。"
+    },
+    {
+      "name": "alpha10",
+      "expression": "(df['BB_Upper'] - df['BB_Lower']) / df['SMA_20']",
+      "explanation": "(1) 使用布林带上轨、下轨和20日均线。布林带宽度衡量波动率水平（宽度越大波动越强）。捕捉高波动环境下的机会，但波动率本身不指示方向，需结合其他因子。(2) 该因子越大，我预期该概念未来收益波动越大（与收益方向无直接正负相关，但高波动常伴随趋势机会）。(3) BB_Upper 以正号出现（上轨越高，alpha 越大），BB_Lower 以负号出现（下轨越低，alpha 越大），SMA_20 以负号出现在分母（均线越低，alpha 越大）。(4) 该因子为比率计算，整体近似线性，但布林带基于标准差具有非线性波动特征。"
+    },
+    {
+      "name": "alpha11",
+      "expression": "df['net_active_buy_amt_ratio']",
+      "explanation": "(1) 使用净主动买入额成交额占比。反映日内资金主动性方向（正值净买入）。捕捉资金流入驱动的短期收益，主力资金态度直接影响价格。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) net_active_buy_amt_ratio 以正号出现，因此占比越高，alpha 值越大。(4) 该因子是原始输入，完全线性且无非线性处理。"
+    },
+    {
+      "name": "alpha12",
+      "expression": "df['main_net_inflow_amt_ratio']",
+      "explanation": "(1) 使用主力净流入额成交额占比。衡量机构资金净流入强度（高值表示主力积极布局）。捕捉“聪明钱”动向对价格的引领作用，主力流入预示上涨。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) main_net_inflow_amt_ratio 以正号出现，因此主力流入占比越高，alpha 值越大。(4) 该因子为线性输入，结构简单且线性。"
+    },
+    {
+      "name": "alpha13",
+      "expression": "df['close_net_active_buy_amt_ratio'] - df['open_net_active_buy_amt_ratio']",
+      "explanation": "(1) 使用尾盘和开盘净主动买入额占比。尾盘资金反映收盘定调行为，开盘资金反映初始动向。捕捉尾盘抢筹信号（尾盘强于开盘），预示次日延续性。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) close_net_active_buy_amt_ratio 以正号出现（尾盘资金越强，alpha 越大），open_net_active_buy_amt_ratio 以负号出现（开盘资金越弱，alpha 越大）。(4) 该因子为线性差值，整体线性，但资金流占比本身隐含市场微观结构非线性。"
+    },
+    {
+      "name": "alpha14",
+      "expression": "df['OBV'] - df['OBV'].shift(1)",
+      "explanation": "(1) 使用能量潮指标变化量。OBV 动量反映成交量对价格方向的确认程度（正值表示量能支持上涨）。捕捉量价配合的可靠性，OBV 上升确认趋势有效。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) OBV 以正号出现（当前 OBV 越高，alpha 越大），OBV.shift(1) 以负号出现（前日 OBV 越低，alpha 越大）。(4) 该因子为一阶差分，线性结构，但 OBV 累积过程具有路径依赖的非线性。"
+    },
+    {
+      "name": "alpha15",
+      "expression": "(df['close'] - df['open']) * df['net_active_buy_amt_ratio']",
+      "explanation": "(1) 使用日内价格变化和净主动买入占比。价格变化方向与资金流方向的一致性（同向时值大）。捕捉量价协同效应，资金流入伴随价格上涨时信号更强。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) close 和 net_active_buy_amt_ratio 以正号出现（收盘越高或资金流入越多，alpha 越大），open 以负号出现（开盘越低，alpha 越大）。(4) 该因子含乘积项，具有非线性交互，但整体在一致区域近似线性放大。"
+    },
+    {
+      "name": "alpha16",
+      "expression": "df['overall_sentiment'] * ((df['close'] - df['SMA_20']) / df['SMA_20'])",
+      "explanation": "(1) 结合整体情绪和价格相对20日均线位置。情绪提供新闻驱动，均线位置反映技术趋势。捕捉利好情绪强化趋势上行的场景，情绪与技术面共振。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment、close 以正号出现（情绪越乐观或价格越高，alpha 越大），SMA_20 以负号出现在分母（均线越低，alpha 越大）。(4) 该因子含乘积项，具有非线性交互，但各部分局部线性。"
+    },
+    {
+      "name": "alpha17",
+      "expression": "df['overall_duration'] * df['MOM_10']",
+      "explanation": "(1) 使用影响持续性和10日动量。持续性区分长周期故事，动量捕捉中期趋势。捕捉持续性事件驱动的动量延续，高持续性利好事件强化上涨趋势。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_duration 和 MOM_10 均以正号出现，因此持续性越长或动量越强，alpha 值越大。(4) 该因子为线性乘积，整体近似线性，但动量隐含历史价格非线性。"
+    },
+    {
+      "name": "alpha18",
+      "expression": "df['news_consistency'] * ((df['BB_Upper'] - df['BB_Lower']) / df['SMA_20'])",
+      "explanation": "(1) 使用新闻一致性和布林带宽度。一致性衡量叙事统一，宽度反映波动率水平。捕捉高一致性新闻引发的波动放大效应，统一叙事增强市场反应强度。(2) 该因子越大，我预期该概念未来收益波动越大（与收益方向无直接正负相关，但高波动常伴随趋势机会）。(3) news_consistency、BB_Upper 以正号出现（一致性越高或上轨越高，alpha 越大），BB_Lower 以负号出现（下轨越低，alpha 越大），SMA_20 以负号出现在分母（均线越低，alpha 越大）。(4) 该因子含乘积项，具有非线性交互，但波动率部分近似线性。"
+    },
+    {
+      "name": "alpha19",
+      "expression": "(df['overall_sentiment'] + df['overall_sentiment'].shift(1) * 0.6 + df['overall_sentiment'].shift(2) * 0.3) / 1.9",
+      "explanation": "(1) 使用情绪的滞后加权平均。情绪滞后值捕捉新闻影响的衰减过程（近期权重高）。捕捉情绪持续性效应，避免单日噪音，强调趋势性情绪积累。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 及其滞后项均以正号出现，因此近期情绪越乐观，alpha 值越大。(4) 该因子为线性加权和，整体近似线性，但权重设计隐含指数衰减的非线性思想。"
+    },
+    {
+      "name": "alpha20",
+      "expression": "df['MOM_3'] + df['MOM_10']",
+      "explanation": "(1) 使用3日和10日动量。短期动量捕捉即时价格变化，中期动量反映趋势强度。捕捉多周期动量共振，短期加速强化中期趋势。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) MOM_3 和 MOM_10 均以正号出现，因此短期或中期动量越强，alpha 值越大。(4) 该因子为简单加和，完全线性，但动量指标基于价格差具有内在非线性。"
+    },
+    {
+      "name": "alpha21",
+      "expression": "np.where(df['RSI_14'] < 30, df['overall_sentiment'] * 1.5, np.where(df['RSI_14'] > 70, df['overall_sentiment'] * 0.5, df['overall_sentiment']))",
+      "explanation": "(1) 结合情绪和RSI状态。RSI超卖（<30）时放大情绪影响，超买（>70）时减弱。捕捉超卖区域情绪驱动的反弹机会，超买区域情绪效应衰减。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 以正号出现，但受RSI阈值调节：RSI越低（超卖），情绪贡献越大；RSI越高（超买），情绪贡献越小。(4) 该因子具有明显阈值非线性，在RSI关键水平处发生阶跃变化。"
+    },
+    {
+      "name": "alpha22",
+      "expression": "df['net_active_buy_amt_ratio'] * np.where(df['close'] > df['SMA_20'], 1, 0)",
+      "explanation": "(1) 使用净主动买入占比和价格位置。资金流需配合价格在均线上方才有效。捕捉趋势确认信号，仅在上升趋势中资金流入才强化上涨预期。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) net_active_buy_amt_ratio 以正号出现（资金流入越多，alpha 越大），close > SMA_20 作为开关（价格在均线上方时激活）。(4) 该因子含条件阈值，具有分段非线性：仅在趋势向上时有效，否则为零。"
+    },
+    {
+      "name": "alpha23",
+      "expression": "df['main_net_inflow_amt_ratio'] * np.where(df['main_net_inflow_amt_ratio'] > df['main_net_inflow_amt_ratio'].shift(1), 1, 0)",
+      "explanation": "(1) 使用主力资金流入占比及其变化。主力流入增加表示资金态度转积极。捕捉主力资金动量信号，流入加速预示趋势强化。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) main_net_inflow_amt_ratio 以正号出现，但仅当主力流入占比上升时激活（变化正向贡献）。(4) 该因子具有明显非线性，仅在主力流入增加时非零，否则为零，形成二元开关效应。"
+    },
+    {
+      "name": "alpha24",
+      "expression": "df['overall_importance'] * ((df['high'] - df['low']) / df['close'])",
+      "explanation": "(1) 使用事件重要性和日内振幅。重要性衡量事件分量，振幅反映价格波动强度。捕捉高重要性事件引发的剧烈波动，事件越关键振幅越大。(2) 该因子越大，我预期该概念未来收益波动越大（与收益方向无直接正负相关，但高波动常伴随趋势机会）。(3) overall_importance、high 以正号出现（事件越重要或最高价越高，alpha 越大），low 以负号出现（最低价越低，alpha 越大），close 以负号出现在分母（收盘价越低，alpha 越大）。(4) 该因子含乘积项，整体近似线性，但振幅计算隐含非线性价格路径。"
+    },
+    {
+      "name": "alpha25",
+      "expression": "df['overall_duration'] * ((df['SMA_5'] - df['SMA_20']) / df['SMA_20'])",
+      "explanation": "(1) 使用影响持续性和均线差。持续性区分长期影响，均线差反映短期趋势强度。捕捉持续性事件驱动的均线上行，高持续性利好事件强化短期趋势。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_duration、SMA_5 以正号出现（持续性越长或短期均线越高，alpha 越大），SMA_20 以负号出现在分母（中期均线越低，alpha 越大）。(4) 该因子为乘积结构，具有非线性交互，但均线差部分局部线性。"
+    },
+    {
+      "name": "alpha26",
+      "expression": "df['news_consistency'] * (df['volume'] / df['volume'].shift(1))",
+      "explanation": "(1) 使用新闻一致性和成交量变化率。一致性衡量叙事统一，成交量变化反映交易活跃度。捕捉高一致性新闻引发的交易放量，统一叙事吸引资金涌入。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) news_consistency 和 volume/volume.shift(1) 均以正号出现，因此叙事越一致或成交量增长越多，alpha 值越大。(4) 该因子为乘积项，整体近似线性，但成交量变化率具有比率非线性。"
+    },
+    {
+      "name": "alpha27",
+      "expression": "df['fcast_ret'] * (df['MOM_10'] / 10.0)",
+      "explanation": "(1) 结合预计收益和10日动量。fcast_ret 提供主观预期，动量反映客观趋势。捕捉预期与趋势一致时的强化信号，动量放大主观预测效力。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) fcast_ret 和 MOM_10 均以正号出现，因此预估收益越高或动量越强，alpha 值越大。(4) 该因子为缩放乘积，整体近似线性，但缩放因子使量纲统一。"
+    },
+    {
+      "name": "alpha28",
+      "expression": "(df['close'] - df['BB_Upper']) / (df['BB_Upper'] - df['BB_Lower'])",
+      "explanation": "(1) 使用收盘价和布林带边界。价格相对上轨位置衡量超买程度（正值表示突破上轨）。捕捉超买区域的反转风险，突破上轨后预期回调。(2) 该因子越大，我预期该概念未来收益越低（负相关）。(3) close 以正号出现（价格越高，alpha 越大），BB_Upper 以负号出现（上轨越低，alpha 越大），BB_Lower 以正号出现在分母（下轨越低，alpha 越大）。(4) 该因子为标准化比率，线性结构，但布林带边界基于波动率具有非线性。"
+    },
+    {
+      "name": "alpha29",
+      "expression": "df['turn'] * df['overall_sentiment']",
+      "explanation": "(1) 使用换手率和整体情绪。换手率反映交易活跃度，情绪提供方向信号。捕捉高活跃度下的情绪驱动，高换手放大情绪对价格的影响。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) turn 和 overall_sentiment 均以正号出现，因此换手率越高或情绪越乐观，alpha 值越大。(4) 该因子为线性乘积，整体近似线性，但换手率与情绪可能存在非线性交互。"
+    },
+    {
+      "name": "alpha30",
+      "expression": "df['overall_sentiment'] * 0.4 + df['overall_sentiment'].shift(1) * 0.35 + df['overall_sentiment'].shift(2) * 0.25",
+      "explanation": "(1) 使用情绪的指数加权滞后平均。近期情绪权重更高，模拟影响衰减。捕捉情绪趋势的持续性，避免单日异常值干扰。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 及其滞后项均以正号出现，因此近期情绪越乐观，alpha 值越大。(4) 该因子为线性加权和，整体线性，但权重设计体现非线性衰减逻辑。"
+    },
+    {
+      "name": "alpha31",
+      "expression": "(df['SMA_5'] - df['SMA_20']) + (df['close'] - df['EMA_10'])",
+      "explanation": "(1) 使用短期均线差和价格相对指数均线位置。均线差反映趋势强度，价格偏离反映短期动量。捕捉多维度趋势确认，均线发散与价格强势结合。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) SMA_5、close 以正号出现（短期均线或价格越高，alpha 越大），SMA_20、EMA_10 以负号出现（中期或指数均线越低，alpha 越大）。(4) 该因子为简单加和，完全线性，但 EMA 具有指数平滑的非线性基础。"
+    },
+    {
+      "name": "alpha32",
+      "expression": "df['RSI_14'] - df['RSI_14'].shift(1)",
+      "explanation": "(1) 使用RSI_14的动量变化。RSI上升表示超买加剧，下降表示超卖缓解。捕捉RSI动量信号，上升趋势中RSI加速预示动能强劲。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) RSI_14 以正号出现（当前RSI越高，alpha 越大），RSI_14.shift(1) 以负号出现（前日RSI越低，alpha 越大）。(4) 该因子为一阶差分，线性结构，但RSI本身基于非线性价格变化。"
+    },
+    {
+      "name": "alpha33",
+      "expression": "df['MACD'] - df['MACD'].shift(1)",
+      "explanation": "(1) 使用MACD主线的变化量。MACD上升表示趋势加速。捕捉MACD动量增强信号，正值扩大时上涨动能加强。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) MACD 以正号出现（当前MACD越高，alpha 越大），MACD.shift(1) 以负号出现（前日MACD越低，alpha 越大）。(4) 该因子为简单差分，线性结构，但MACD计算涉及指数平滑。"
+    },
+    {
+      "name": "alpha34",
+      "expression": "df['net_active_buy_amt_ratio'] - df['net_active_buy_amt_ratio'].shift(1)",
+      "explanation": "(1) 使用净主动买入占比的变化。资金流占比上升表示买入意愿增强。捕捉资金流入加速信号，占比增长预示短期收益提升。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) net_active_buy_amt_ratio 以正号出现（当前占比越高，alpha 越大），net_active_buy_amt_ratio.shift(1) 以负号出现（前日占比越低，alpha 越大）。(4) 该因子为线性差分，整体线性，但资金流占比变化隐含市场情绪非线性。"
+    },
+    {
+      "name": "alpha35",
+      "expression": "df['main_net_inflow_amt_ratio'] - df['main_net_inflow_amt_ratio'].shift(1)",
+      "explanation": "(1) 使用主力净流入占比的变化。主力流入加速表示机构态度转积极。捕捉主力资金动量信号，流入增长强化上涨预期。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) main_net_inflow_amt_ratio 以正号出现（当前占比越高，alpha 越大），main_net_inflow_amt_ratio.shift(1) 以负号出现（前日占比越低，alpha 越大）。(4) 该因子为简单差分，线性结构，但主力资金变化反映非线性市场行为。"
+    },
+    {
+      "name": "alpha36",
+      "expression": "df['overall_impact'] * df['main_net_inflow_amt_ratio']",
+      "explanation": "(1) 使用影响强度和主力资金流入占比。影响强度量化事件冲击，主力资金反映机构响应。捕捉高冲击事件引发的主力资金流入，事件越强主力反应越积极。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_impact 和 main_net_inflow_amt_ratio 均以正号出现，因此冲击越强或主力流入越多，alpha 值越大。(4) 该因子为线性乘积，整体近似线性，但交互项放大关键事件影响。"
+    },
+    {
+      "name": "alpha37",
+      "expression": "df['news_consistency'] * df['overall_sentiment'] * df['overall_importance']",
+      "explanation": "(1) 使用新闻一致性、情绪和重要性三因子。一致性减少不确定性，情绪提供方向，重要性衡量事件分量。捕捉高确定性高分量利好事件的综合驱动效应。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) news_consistency、overall_sentiment、overall_importance 均以正号出现，因此叙事越一致、情绪越乐观或事件越重要，alpha 值越大。(4) 该因子为三重乘积，具有强非线性交互，但各因子局部线性。"
+    },
+    {
+      "name": "alpha38",
+      "expression": "df['fcast_ret'] * df['net_active_buy_amt_ratio']",
+      "explanation": "(1) 结合预计收益和净主动买入占比。主观预期与资金流方向一致时信号更强。捕捉预期与实际资金行为的协同，强化预测可靠性。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) fcast_ret 和 net_active_buy_amt_ratio 均以正号出现，因此预估收益越高或资金流入越多，alpha 值越大。(4) 该因子为线性乘积，整体近似线性，但乘积项隐含非线性放大效应。"
+    },
+    {
+      "name": "alpha39",
+      "expression": "(df['close'] - df['open']) / df['open'] * df['turn']",
+      "explanation": "(1) 使用日内收益率和换手率。开盘跳空反映隔夜情绪，换手率衡量交易活跃度。捕捉高活跃度下的开盘跳空延续性，跳空伴随高换手预示趋势有效。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) close 以正号出现（收盘越高，alpha 越大），open 以负号出现（开盘越低，alpha 越大），turn 以正号出现（换手率越高，alpha 越大）。(4) 该因子含乘积项，具有非线性交互，但日内收益率部分线性。"
+    },
+    {
+      "name": "alpha40",
+      "expression": "df['overall_sentiment'] * ((df['open'] - df['close'].shift(1)) / df['close'].shift(1))",
+      "explanation": "(1) 结合情绪和开盘跳空。情绪驱动隔夜预期，开盘跳空反映预期实现。捕捉利好情绪引发的高开延续性，情绪与开盘跳空正相关。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment、open 以正号出现（情绪越乐观或开盘越高，alpha 越大），close.shift(1) 以负号出现在分母（前日收盘越低，alpha 越大）。(4) 该因子为乘积结构，具有非线性交互，但跳空计算局部线性。"
+    },
+    {
+      "name": "alpha41",
+      "expression": "df['close_net_active_buy_amt_ratio'] * np.where(df['close'] > df['open'], 1, -1)",
+      "explanation": "(1) 使用尾盘资金流和收盘方向。尾盘资金反映最终定调，收盘方向确认日内趋势。捕捉尾盘抢筹在上涨日的强化信号，下跌日则反转。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) close_net_active_buy_amt_ratio 以正号出现，但乘以收盘方向符号：当收盘>开盘时，尾盘资金正向贡献；否则反向贡献。(4) 该因子含符号开关，具有明显非线性，在收盘方向变化时发生阶跃。"
+    },
+    {
+      "name": "alpha42",
+      "expression": "df['open_main_net_inflow_amt_ratio']",
+      "explanation": "(1) 直接使用开盘主力净流入占比。开盘阶段主力布局反映当日初始意图。捕捉主力开盘积极程度，高流入预示日内上涨动能。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) open_main_net_inflow_amt_ratio 以正号出现，因此开盘主力流入占比越高，alpha 值越大。(4) 该因子是原始输入，完全线性且无非线性处理。"
+    },
+    {
+      "name": "alpha43",
+      "expression": "np.maximum(0, df['main_net_inflow_amt_ratio'])",
+      "explanation": "(1) 使用主力净流入占比的截断值。仅保留净流入部分，忽略净流出。捕捉纯主力买入信号，避免卖出干扰上涨预期。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) main_net_inflow_amt_ratio 在正值时以正号出现（流入越多，alpha 越大），负值时被截断为零。(4) 该因子具有明显阈值非线性，仅在主力净流入时非零，否则为零。"
+    },
+    {
+      "name": "alpha44",
+      "expression": "np.maximum(0, df['close'] - df['open']) * df['net_active_buy_amt_ratio']",
+      "explanation": "(1) 使用上涨日价格变化和资金流。仅考虑上涨日的资金流入效应。捕捉上涨趋势中资金确认的强化信号，下跌日不贡献。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) close 以正号出现（收盘越高，alpha 越大），open 以负号出现（开盘越低，alpha 越大），net_active_buy_amt_ratio 以正号出现（资金流入越多，alpha 越大）。(4) 该因子含截断和乘积，具有强非线性：仅在上涨日激活，且资金流放大效应。"
+    },
+    {
+      "name": "alpha45",
+      "expression": "((df['BB_Upper'] - df['BB_Lower']) / df['SMA_20']) - ((df['BB_Upper'].shift(1) - df['BB_Lower'].shift(1)) / df['SMA_20'].shift(1))",
+      "explanation": "(1) 使用布林带宽度的动量变化。波动率扩张或收缩反映市场情绪变化。捕捉波动率加速信号，宽度扩大预示趋势强化或反转风险。(2) 该因子越大，我预期该概念未来收益波动越大（与收益方向无直接正负相关，但波动率扩张常伴随趋势机会）。(3) BB_Upper 和 BB_Lower.shift(1) 以正号出现（当前上轨越高或前日下轨越低，alpha 越大），BB_Lower 和 BB_Upper.shift(1) 以负号出现（当前下轨越低或前日上轨越高，alpha 越大），SMA_20 项以复杂方式影响分母。(4) 该因子为差分结构，线性计算，但波动率宽度本身具有非线性特征。"
+    },
+    {
+      "name": "alpha46",
+      "expression": "np.maximum(0, 30 - df['RSI_14']) * df['overall_sentiment']",
+      "explanation": "(1) 结合RSI超卖区域和情绪。仅当RSI超卖（<30）时，情绪影响被激活。捕捉超卖区域情绪驱动的反弹机会，超买区域无效。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) RSI_14 以负号出现在截断项（RSI越低，超卖值越大），overall_sentiment 以正号出现（情绪越乐观，alpha 越大）。(4) 该因子具有明显阈值非线性：仅在RSI<30时非零，且情绪与超卖程度交互放大。"
+    },
+    {
+      "name": "alpha47",
+      "expression": "(df['MACD'] - df['MACD_Signal']) * np.where(df['MACD'] > df['MACD_Signal'], 1, -1)",
+      "explanation": "(1) 使用MACD柱的绝对强度和方向。正值强化金叉信号，负值强化死叉信号。捕捉MACD信号的强度与方向一致性，避免弱信号干扰。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) MACD - MACD_Signal 以正号出现，但乘以方向符号：当MACD>Signal时，差值正向贡献；否则反向贡献。(4) 该因子含符号开关，具有非线性：在MACD与Signal交叉点发生阶跃变化。"
+    },
+    {
+      "name": "alpha48",
+      "expression": "df['amt'] * df['overall_sentiment'] / df['amt'].shift(1)",
+      "explanation": "(1) 使用成交额变化与情绪。成交额放大反映资金响应，情绪提供方向。捕捉高情绪下的成交额扩张，资金活跃度放大情绪影响。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) amt 和 overall_sentiment 以正号出现（成交额越高或情绪越乐观，alpha 越大），amt.shift(1) 以负号出现在分母（前日成交额越低，alpha 越大）。(4) 该因子为比率乘积，整体近似线性，但成交额变化率具有非线性特征。"
+    },
+    {
+      "name": "alpha49",
+      "expression": "0.3 * df['overall_sentiment'] + 0.4 * df['net_active_buy_amt_ratio'] + 0.3 * ((df['close'] - df['SMA_20']) / df['SMA_20'])",
+      "explanation": "(1) 使用情绪、资金流和价格位置的加权组合。情绪提供新闻驱动，资金流反映实时行为，价格位置确认趋势。捕捉多因子综合信号，平衡基本面与技术面。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment、net_active_buy_amt_ratio、close 以正号出现（情绪越乐观、资金流入越多或价格越高，alpha 越大），SMA_20 以负号出现在分母（均线越低，alpha 越大）。(4) 该因子为线性加权和，整体近似线性，但各成分隐含非线性历史路径。"
+    },
+    {
+      "name": "alpha50",
+      "expression": "np.where(df['close'] < df['BB_Lower'], df['overall_sentiment'] * 1.8, np.where(df['close'] > df['BB_Upper'], df['overall_sentiment'] * 0.2, df['overall_sentiment']))",
+      "explanation": "(1) 结合情绪和布林带位置。超卖区域（<下轨）放大情绪影响，超买区域（>上轨）减弱。捕捉极端价格区域的情绪修正效应，超卖时利好情绪更强力驱动反弹。(2) 该因子越大，我预期该概念未来收益越高（正相关）。(3) overall_sentiment 以正号出现，但受布林带阈值调节：在超卖区域贡献放大，在超买区域贡献减弱。(4) 该因子具有明显阈值非线性，在布林带边界处发生阶跃变化，形成三段式结构。"
+    }
+  ]
+}
