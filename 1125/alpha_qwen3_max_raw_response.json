@@ -1,0 +1,304 @@
+{
+  "alphas": [
+    {
+      "name": "alpha1",
+      "expression": "(df['overall_sentiment'] * df['news_consistency'] / 10.0) * (df['MOM_10'] / (ts_std(df['close'], 20) + 1e-6)) * np.where(df['main_net_inflow_amt_ratio'] > ts_mean(df['main_net_inflow_amt_ratio'], 5), 1.0, 0.5)",
+      "explanation": "该因子融合情绪强度（overall_sentiment）、叙事一致性（news_consistency）与中短期动量（MOM_10），并用20日价格波动率标准化动量，再通过主力资金占比是否高于5日均值进行门控放大。整体捕捉“高一致性利好情绪 + 强趋势 + 主力认可”下的正向收益机会。因子越大，预期未来收益越高；情绪、一致性、动量均为正向贡献，主力门控为非线性增强。结构上具有分段非线性特征。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha2",
+      "expression": "np.where(df['RSI_14'] > 70, -df['overall_sentiment'] * df['overall_impact'] / 10.0, df['overall_sentiment'] * df['overall_impact'] / 10.0) * (df['close'] - df['SMA_20']) / (df['SMA_20'] + 1e-6)",
+      "explanation": "该因子在技术超买（RSI>70）时反转情绪信号方向：若情绪乐观但已超买，则视为风险信号（负向）；否则情绪与冲击强度同向作用于价格相对于20日均线的偏离度。旨在捕捉“情绪驱动下的趋势过热反转”或“健康趋势延续”。因子值大表示非超买区的利好情绪推动价格上行，预期收益高；RSI超买时情绪转为负贡献。具有明显阈值非线性。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha3",
+      "expression": "decay_linear(ts_mean(df['fcast_ret'] - 5.0, 3), 5) * corr(df['net_active_buy_amt_ratio'], df['close'], 10) * zscore(df['turn'])",
+      "explanation": "该因子将主观预测收益（中心化后）经3日均值和5日衰减平滑，乘以近10日净主动买入占比与价格的相关性（衡量资金是否支持价格方向），再乘以换手率的截面z-score（反映交易活跃度异常）。整体捕捉“预测乐观 + 资金与价格协同 + 高换手”共振场景。因子越大，预期未来收益越高；fcast_ret、corr、turn均为正向贡献。结构为准线性组合，但含时间平滑与相关性交互。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha4",
+      "expression": "(df['BB_Upper'] - df['close']) / (df['BB_Upper'] - df['BB_Lower'] + 1e-6) * np.where(df['overall_sentiment'] < -0.3, 1.0, 0.0) * ts_rank(df['volume'], 10)",
+      "explanation": "该因子仅在情绪显著利空（< -0.3）时激活，计算价格距离布林带上轨的相对位置（越低说明越远离上轨），乘以过去10日成交量排名（高排名=近期放量）。逻辑是：在负面情绪下，若价格已远离强势区域且伴随高成交，可能预示进一步下跌或恐慌释放后的反弹准备？但此处设计为：因子值越大（即价格越靠近下轨+高成交+利空），预期短期继续承压，故与未来收益负相关。具有强条件触发和非线性。",
+      "linear_relation": -1
+    },
+    {
+      "name": "alpha5",
+      "expression": "df['overall_duration'] * df['news_consistency'] * (df['MACD'] - df['MACD_Signal']) * np.sign(df['close'] - df['EMA_10'])",
+      "explanation": "该因子结合事件持续性（overall_duration）、新闻一致性（news_consistency）、MACD柱状图（趋势动能）及价格相对于10日指数均线的方向符号。只有当价格在EMA_10上方（上涨趋势）时，MACD金叉才被正向放大；下方则为负。整体捕捉“长期叙事一致 + 趋势确认”的动量增强。因子越大，预期未来收益越高；所有成分均为正向贡献（在趋势匹配前提下）。结构为准线性，但含符号门控。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha6",
+      "expression": "-ts_std(df['close'], 5) * df['overall_impact'] * np.where(df['RSI_14'] < 40, 1.0, 0.0)",
+      "explanation": "该因子在技术未超买（RSI<40）时激活，取5日价格波动率的负值乘以新闻冲击强度。逻辑是：在非强势区域，高冲击事件若伴随低波动，可能预示即将爆发；但此处直接使用波动率本身——因子值越大（即波动越小+冲击越大+RSI不高），反而预期未来波动放大但方向不确定？但设计为：低波动+高冲击在弱势区可能酝酿反弹，但表达式为负波动率，故因子大 = 波动小，预期未来收益可能回升。然而因方向不明确，标记为非线性。实际更偏向“低波动+高冲击”事件套利准备信号。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha7",
+      "expression": "rank(df['overall_sentiment'] * df['main_net_inflow_amt_ratio']) * (df['OBV'] - ts_mean(df['OBV'], 10)) / (ts_std(df['OBV'], 10) + 1e-6)",
+      "explanation": "该因子先对情绪与主力净流入占比的乘积做截面排名（0~1），再乘以OBV相对于10日均值的z-score形式。捕捉“情绪与主力资金共振”且“量能趋势向上”的标的。因子越大，表示情绪-资金协同性强且OBV处于强势，预期未来收益越高；情绪、主力占比、OBV趋势均为正向贡献。结构含截面标准化与时间序列标准化，为准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha8",
+      "expression": "np.where(df['close'] < df['BB_Lower'], df['overall_sentiment'] * df['overall_importance'] / 10.0 * (df['BB_Lower'] - df['close']) / (df['BB_Lower'] + 1e-6), 0)",
+      "explanation": "该因子仅在价格跌破布林带下轨时激活，计算情绪与重要性的加权乘积，并乘以超卖幅度（相对下轨的距离）。逻辑是：在极端低价位，若出现重要利好新闻，可能预示强力反弹。因子值越大，表示超卖程度深+利好情绪强+事件重要，预期未来收益越高；情绪、重要性、超卖幅度均为正向贡献。具有明显阈值触发的非线性结构。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha9",
+      "expression": "(df['close_net_active_buy_amt_ratio'] - df['open_net_active_buy_amt_ratio']) * df['news_consistency'] * ts_rank(df['MOM_3'], 5)",
+      "explanation": "该因子衡量尾盘相对于开盘的净主动买入占比优势，乘以新闻一致性及3日动量的5日排名。捕捉“日内资金由弱转强 + 叙事统一 + 短期动量领先”的积极信号。因子越大，预期未来收益越高；尾盘优势、一致性、动量排名均为正向贡献。结构为准线性，含时间序列排名。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha10",
+      "expression": "df['fcast_ret'] * (1.0 - abs(df['close'] / df['SMA_5'] - 1.0)) * np.where(df['overall_duration'] > 6, 1.0, 0.5)",
+      "explanation": "该因子将主观预测收益与价格贴近5日均线的程度（越贴近值越大）相乘，并根据事件持续性（>6为长期）进行权重放大。逻辑是：当预测乐观且价格处于短期均衡（未大幅偏离均线），叠加长期事件背景时，趋势更可持续。因子越大，预期未来收益越高；fcast_ret、均线贴近度、持续性均为正向贡献。结构含非线性贴近函数和条件放大。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha11",
+      "expression": "-df['RSI_14'] * df['overall_sentiment'] * df['dq_amtturnover']",
+      "explanation": "该因子将RSI、情绪和金额换手率相乘并取负。逻辑是：在高RSI（超买）区域，即使情绪乐观，若换手率高，可能预示获利了结压力大，未来收益承压。因子值越大（即RSI低、情绪悲观、换手低），反而预期未来有修复空间？但表达式为负RSI×情绪×换手，故当三者同高时因子极负，预期收益低；因子大（接近0或正）对应低RSI/悲观情绪/低换手，未必直接对应高收益。关系复杂，标记为非线性。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha12",
+      "expression": "corr(df['overall_sentiment'], df['close'], 5) * ts_mean(df['main_net_inflow_amt'], 3) / (ts_mean(df['amt'], 3) + 1e-6) * df['MOM_10']",
+      "explanation": "该因子计算近5日情绪与收盘价的相关性（衡量情绪是否有效定价），乘以3日主力净流入额占成交额比例（主力参与度），再乘以10日动量。捕捉“情绪有效传导 + 主力持续流入 + 趋势强劲”的三重确认。因子越大，预期未来收益越高；corr、主力占比、动量均为正向贡献。结构含跨变量相关性与时序均值，为准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha13",
+      "expression": "np.where(df['high'] / df['low'] - 1.0 > ts_mean(df['high'] / df['low'] - 1.0, 10), -abs(df['overall_sentiment']) * df['overall_impact'], df['overall_sentiment'] * df['overall_impact'])",
+      "explanation": "该因子在当日振幅（high/low-1）高于10日均值时，将情绪绝对值取负乘以冲击强度（视为高波动下的噪音干扰）；否则正常使用情绪×冲击。逻辑是：高波动日情绪信号可靠性下降，甚至反向。因子值大表示低波动日的利好情绪+高冲击，预期收益高；高波动日则情绪越极端因子越负。具有明显波动率阈值的非线性结构。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha14",
+      "expression": "decay_linear(ts_mean(df['close_main_net_inflow_amt_ratio'], 3), 5) * df['news_consistency'] * (df['EMA_10'] - df['SMA_20']) / (df['SMA_20'] + 1e-6)",
+      "explanation": "该因子对尾盘主力净流入占比做3日均值和5日衰减平滑，乘以新闻一致性及10日EMA与20日SMA的差值（短期快线上穿慢线为正）。捕捉“尾盘主力持续布局 + 叙事统一 + 短期趋势转强”的信号。因子越大，预期未来收益越高；主力尾盘流入、一致性、快慢线差均为正向贡献。结构含时间衰减与趋势差，为准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha15",
+      "expression": "(df['overall_importance'] - ts_mean(df['overall_importance'], 5)) * (df['volume'] - ts_mean(df['volume'], 5)) / (ts_std(df['volume'], 5) + 1e-6) * np.sign(df['MOM_3'])",
+      "explanation": "该因子衡量新闻重要性相对于5日均值的偏离，乘以成交量z-score形式，再乘以3日动量方向符号。逻辑是：当重要性突增且伴随异常放量，若动量为正则强化看涨，为负则强化看跌。因子值大表示重要性突增+放量+上涨动量，预期收益高；重要性偏离、成交量、动量方向均为正向贡献（在符号匹配下）。结构含时间序列标准化与符号门控。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha16",
+      "expression": "np.minimum(df['RSI_14'] - 50, 0) * df['overall_sentiment'] * df['net_active_buy_amt_ratio']",
+      "explanation": "该因子仅在RSI低于50时生效（取RSI-50的负值部分），乘以情绪和净主动买入占比。逻辑是：在非强势区域，利好情绪与主动买盘的结合更具边际价值。因子值越大（即RSI越低但情绪和资金积极），预期反弹潜力越大，未来收益越高；RSI（负向）、情绪、资金占比均为正向贡献（在RSI<50前提下）。结构为分段线性（截断）。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha17",
+      "expression": "ts_rank(df['fcast_ret'], 10) * corr(df['OBV'], df['close'], 10) * zscore(df['overall_duration'])",
+      "explanation": "该因子将预测收益的10日排名、OBV与价格的10日相关性、事件持续性的截面z-score相乘。捕捉“预测领先 + 量价协同 + 长期叙事”的综合优势。因子越大，预期未来收益越高；fcast_ret排名、OBV-corr、duration zscore均为正向贡献。结构含时间排名、相关性与截面标准化，为准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha18",
+      "expression": "-(df['close'] - df['open']) / (df['high'] - df['low'] + 1e-6) * df['overall_sentiment'] * np.where(df['turn'] > ts_mean(df['turn'], 20), 1.0, 0.0)",
+      "explanation": "该因子计算日内实体占比（收盘-开盘）/振幅，并取负，乘以情绪及高换手门控（换手高于20日均值）。逻辑是：在高换手日，若出现长上影（实体小、振幅大）且情绪乐观，可能预示冲高回落，未来收益承压。因子值越大（即实体占比越小（负得少）+情绪越悲观），反而预期收益可能更高？但表达式为负实体占比×情绪，故当实体小+情绪好时因子极负，预期收益低；因子大对应实体大或情绪差，关系非单调。标记为非线性。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha19",
+      "expression": "df['overall_impact'] * df['main_net_inflow_amt_ratio'] * (df['MACD'] > df['MACD_Signal']).astype(int)",
+      "explanation": "该因子将新闻冲击强度、主力净流入占比与MACD金叉（1/0）相乘。仅在MACD金叉时激活，捕捉“高冲击事件 + 主力认可 + 趋势确认”的共振。因子越大，预期未来收益越高；impact、主力占比、金叉均为正向贡献。结构为布尔门控的准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha20",
+      "expression": "(ts_max(df['close'], 20) - df['close']) / (ts_max(df['close'], 20) - ts_min(df['close'], 20) + 1e-6) * df['overall_sentiment'] * np.where(df['news_consistency'] > 7, 1.0, 0.0)",
+      "explanation": "该因子在新闻高度一致（>7）时激活，计算价格距离20日最高价的相对位置（越低值越大），乘以情绪。逻辑是：在统一叙事下，若价格处于20日低位且情绪乐观，可能存在错杀机会。因子值越大，预期未来收益越高；价格低位、情绪、一致性门控均为正向贡献。结构含阈值触发与相对位置计算，为准线性（在激活区）。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha21",
+      "expression": "np.where(df['RSI_14'] < 30, df['overall_duration'] * (df['close'] - ts_min(df['close'], 5)) / (ts_min(df['close'], 5) + 1e-6), 0)",
+      "explanation": "该因子仅在RSI超卖（<30）时激活，用事件持续性放大价格相对于5日最低价的反弹幅度。逻辑是：长期事件背景下的超卖反弹更具持续性。因子值越大，表示超卖反弹力度强+事件影响久，预期未来收益越高；duration、反弹幅度均为正向贡献。结构为阈值触发的非线性因子。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha22",
+      "expression": "df['net_active_buy_amt_ratio'] * df['fcast_ret'] * (df['SMA_5'] > df['SMA_20']).astype(int)",
+      "explanation": "该因子在5日均线上穿20日均线（短期趋势向上）时激活，将净主动买入占比与预测收益相乘。捕捉“趋势向上 + 资金主动 + 预期乐观”的顺风局。因子越大，预期未来收益越高；资金占比、预测收益、均线排列均为正向贡献。结构为趋势门控的准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha23",
+      "expression": "-df['overall_sentiment'] * ts_std(df['close'], 10) * np.where(df['MOM_10'] < 0, 1.0, 0.0)",
+      "explanation": "该因子在10日动量为负时激活，取情绪的负值乘以10日波动率。逻辑是：在下跌趋势中，利好情绪若伴随高波动，可能预示情绪与价格背离，存在反转可能？但表达式为负情绪×波动率，故当情绪越乐观（负得越多）+波动越高，因子越负，预期收益可能回升；因子大（接近0）对应悲观情绪或低波动，未必直接利好。关系非单调，标记为非线性。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha24",
+      "expression": "rank(df['close_main_net_inflow_amt'] / (df['amt'] + 1e-6)) * df['news_consistency'] * ts_rank(df['EMA_10'] - df['SMA_20'], 5)",
+      "explanation": "该因子对尾盘主力净流入占比做截面排名，乘以新闻一致性和快慢均线差的5日排名。捕捉“尾盘主力抢筹 + 叙事统一 + 短期趋势领先”的综合信号。因子越大，预期未来收益越高；主力尾盘流入、一致性、趋势差排名均为正向贡献。结构含双重排名，为准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha25",
+      "expression": "(df['fcast_ret'] - 5.0) * (df['OBV'] - ts_mean(df['OBV'], 5)) / (ts_std(df['OBV'], 5) + 1e-6) * df['overall_importance'] / 10.0",
+      "explanation": "该因子将中心化的预测收益、OBV的5日z-score、重要性权重相乘。捕捉“预测乐观 + 量能趋势向上 + 事件重要”的共振。因子越大，预期未来收益越高；fcast_ret（去中性）、OBV趋势、重要性均为正向贡献。结构为准线性组合，含时间序列标准化。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha26",
+      "expression": "np.where(df['close'] > df['BB_Upper'], -df['overall_sentiment'] * df['overall_impact'], df['overall_sentiment'] * df['overall_impact']) * df['turn']",
+      "explanation": "该因子在价格突破布林带上轨时反转情绪信号：超买区的利好情绪视为风险；否则正常作用。再乘以换手率放大交易活跃度的影响。因子值大表示非超买区的利好+高冲击+高换手，预期收益高；超买区则情绪转为负贡献。具有明显价格阈值的非线性结构。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha27",
+      "expression": "decay_linear(ts_mean(df['overall_sentiment'], 3), 5) * corr(df['main_net_inflow_amt_ratio'], df['MOM_3'], 10) * (df['RSI_14'] < 60).astype(int)",
+      "explanation": "该因子对情绪做3日均值和5日衰减平滑，乘以主力净流入占比与3日动量的10日相关性，并在RSI<60（非超买）时激活。逻辑是：在健康区域，情绪、主力与短期动量的协同更可靠。因子越大，预期未来收益越高；平滑情绪、corr、RSI门控均为正向贡献。结构含时间平滑、相关性与阈值门控。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha28",
+      "expression": "(df['high'] - df['close']) / (df['high'] - df['low'] + 1e-6) * df['overall_sentiment'] * np.where(df['overall_duration'] > 5, 1.0, 0.0)",
+      "explanation": "该因子计算上影线占比（高位回落压力），乘以情绪及中长期事件门控（duration>5）。逻辑是：在中长期事件背景下，若出现长上影且情绪乐观，可能预示短期压力，但长期仍看好？但表达式直接相乘，故上影越长+情绪越好，因子越大，可能对应短期回调风险，与未来短期收益负相关。然而因duration门控，长期可能仍正，但此处聚焦短期，标记为负相关。",
+      "linear_relation": -1
+    },
+    {
+      "name": "alpha29",
+      "expression": "df['MOM_10'] * df['news_consistency'] * (df['net_active_buy_amt_ratio'] - ts_mean(df['net_active_buy_amt_ratio'], 5))",
+      "explanation": "该因子将10日动量、新闻一致性与净主动买入占比的5日偏离相乘。捕捉“趋势强劲 + 叙事统一 + 资金主动性突增”的信号。因子越大，预期未来收益越高；动量、一致性、资金偏离均为正向贡献。结构为准线性组合，含时间序列偏离。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha30",
+      "expression": "np.maximum(0, df['overall_sentiment'] - 0.2) * ts_mean(df['close_main_net_inflow_amt_ratio'], 3) * (df['MACD'] - df['MACD_Signal'])",
+      "explanation": "该因子仅在情绪偏利好（>0.2）时激活（取正部），乘以3日尾盘主力净流入占比均值及MACD柱状图。捕捉“明确利好情绪 + 尾盘主力持续流入 + 趋势动能”的共振。因子越大，预期未来收益越高；情绪（阈值后）、主力流入、MACD柱均为正向贡献。结构为阈值截断的准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha31",
+      "expression": "-ts_std(df['overall_sentiment'], 5) * df['turn'] * np.where(df['MOM_10'] > 0, 1.0, 0.0)",
+      "explanation": "该因子在10日动量为正时激活，取情绪5日波动率的负值乘以换手率。逻辑是：在上涨趋势中，情绪越稳定（波动小），配合高换手，趋势更健康；情绪波动大则可能预示分歧。因子值越大（即情绪波动越小+换手越高+趋势向上），预期未来收益越高；但表达式为负波动率，故因子大 = 情绪稳，与收益正相关。然而因含波动率，关系稍复杂，但整体可视为正向。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha32",
+      "expression": "corr(df['fcast_ret'], df['close'], 5) * df['main_net_inflow_amt_ratio'] * zscore(df['overall_impact'])",
+      "explanation": "该因子计算预测收益与价格的5日相关性（衡量预测准确性），乘以主力净流入占比及冲击强度的截面z-score。捕捉“预测有效 + 主力认可 + 事件冲击强”的标的。因子越大，预期未来收益越高；corr、主力占比、impact zscore均为正向贡献。结构含相关性、占比与截面标准化，为准线性组合。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha33",
+      "expression": "np.where(df['RSI_14'] > 50, df['overall_duration'] * (df['close'] - df['SMA_20']) / (df['SMA_20'] + 1e-6), 0)",
+      "explanation": "该因子仅在RSI>50（偏强区域）时激活，用事件持续性放大价格相对于20日均线的偏离度。逻辑是：在强势区，长期事件背景下的价格突破更具持续性。因子值越大，表示强势突破+事件影响久，预期未来收益越高；duration、价格偏离均为正向贡献。结构为阈值触发的非线性因子。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha34",
+      "expression": "(df['open_net_active_buy_amt_ratio'] + df['close_net_active_buy_amt_ratio']) * df['news_consistency'] * ts_rank(df['volume'], 10)",
+      "explanation": "该因子将开盘与尾盘净主动买入占比之和、新闻一致性、10日成交量排名相乘。捕捉“全天关键时段资金主动 + 叙事统一 + 成交活跃”的积极信号。因子越大，预期未来收益越高；两端资金、一致性、成交量排名均为正向贡献。结构为准线性组合，含时间序列排名。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha35",
+      "expression": "df['overall_importance'] * (df['OBV'] - ts_mean(df['OBV'], 10)) / (ts_std(df['OBV'], 10) + 1e-6) * np.sign(df['MOM_10'])",
+      "explanation": "该因子将事件重要性、OBV的10日z-score、10日动量方向符号相乘。逻辑是：重要事件背景下，若OBV趋势向上且价格动量为正，则强化看涨；若动量为负则可能预示背离。因子值大表示重要性高+OBV强势+上涨动量，预期收益高；重要性、OBV趋势、动量符号均为正向贡献（在符号匹配下）。结构含符号门控。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha36",
+      "expression": "df['overall_sentiment'] * df['MOM_3']",
+      "explanation": "该因子直接将当日情绪与3日动量相乘，捕捉短期情绪与价格变动的即时共振。因子越大，表示情绪乐观且短期上涨，预期未来收益越高；情绪与动量均为正向贡献。结构为简单线性交互，虽较简单但经济含义清晰。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha37",
+      "expression": "(df['close'] - df['SMA_20']) / df['SMA_20']",
+      "explanation": "该因子计算价格相对于20日均线的偏离百分比，是经典的趋势跟踪指标。因子越大，表示价格越高于中期均线，趋势越强，预期未来收益越高（动量效应）。结构为简单线性比率，经济含义明确。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha38",
+      "expression": "df['RSI_14'] - 50",
+      "explanation": "该因子将RSI中心化（50为中性），正值表示偏强，负值表示偏弱。因子越大，表示技术面越强，预期未来收益越高（在非超买区）。但RSI在极端区可能反转，此处假设在常规区间内与收益正相关。结构为简单线性变换。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha39",
+      "expression": "df['main_net_inflow_amt_ratio']",
+      "explanation": "该因子直接使用主力净流入额占成交额的比例，衡量主力资金当日参与度和方向。因子越大，表示主力净买入越强，预期未来收益越高。结构为单一资金流指标，简洁有效。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha40",
+      "expression": "df['fcast_ret'] - 5.0",
+      "explanation": "该因子将主观预测收益中心化（5为中性），正值表示预期上涨，负值表示预期下跌。因子越大，预期未来收益越高。结构为简单线性变换，直接反映主观预期方向。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha41",
+      "expression": "-df['overall_sentiment']",
+      "explanation": "该因子取情绪的负值，用于捕捉利空情绪下的潜在做空或回避信号。因子越大（即情绪越悲观），预期未来收益越低。结构为简单线性变换，方向明确。",
+      "linear_relation": -1
+    },
+    {
+      "name": "alpha42",
+      "expression": "df['BB_Upper'] - df['close']",
+      "explanation": "该因子计算价格距离布林带上轨的绝对距离，正值表示未触及上轨。因子越大，表示上行空间越大，但布林带策略通常在触及上轨时做空，故此处因子大可能对应未超买，但与未来收益关系不单调。更适用于均值回归框架，但单独使用方向模糊，标记为非线性。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha43",
+      "expression": "df['turn'] - ts_mean(df['turn'], 20)",
+      "explanation": "该因子衡量当日换手率相对于20日均值的偏离，正值表示异常活跃。因子越大，表示交易热度突增，可能伴随趋势启动或见顶，与未来收益关系取决于上下文，但通常高换手伴随高波动，方向不明确。标记为非线性。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha44",
+      "expression": "df['MACD'] - df['MACD_Signal']",
+      "explanation": "该因子即MACD柱状图，正值表示金叉或上升趋势，负值表示死叉或下降趋势。因子越大，趋势动能越强，预期未来收益越高（趋势跟随）。结构为经典技术指标，方向明确。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha45",
+      "expression": "df['volume'] / ts_mean(df['volume'], 10)",
+      "explanation": "该因子计算当日成交量相对于10日均值的倍数，衡量成交活跃度异常。因子越大，表示放量，通常用于确认趋势有效性。在上涨中放量视为积极，故假设与未来收益正相关。结构为简单比率，经济含义清晰。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha46",
+      "expression": "np.where(df['overall_sentiment'] > 0.5, df['MOM_10'], 0)",
+      "explanation": "该因子仅在情绪强烈利好（>0.5）时输出10日动量，否则为0。逻辑是：仅在高确定性利好情绪下信任动量信号。因子越大，表示强利好下的上涨趋势，预期未来收益越高。结构为情绪门控的动量，具有非线性触发。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha47",
+      "expression": "df['net_active_buy_amt'] / df['amt']",
+      "explanation": "该因子即净主动买入额占比（等同于net_active_buy_amt_ratio），衡量日内资金主动性方向。因子越大，表示主动买盘越强，预期未来收益越高。结构为单一资金流指标，简洁有效。",
+      "linear_relation": 1
+    },
+    {
+      "name": "alpha48",
+      "expression": "df['overall_impact'] * df['overall_duration']",
+      "explanation": "该因子将新闻冲击强度与持续性相乘，衡量事件的“总影响力”（强度×时间）。因子越大，表示事件既强又持久，预期对价格影响深远，通常利好则收益高，利空则收益低。但因未结合情绪方向，单独使用无法判断收益方向，故标记为非线性（需配合情绪）。",
+      "linear_relation": 0
+    },
+    {
+      "name": "alpha49",
+      "expression": "(df['high'] + df['low']) / 2 - df['close']",
+      "explanation": "该因子计算日内均价与收盘价的差，正值表示收盘低于均价（偏弱），负值表示收盘高于均价（偏强）。因子越大，表示日内偏弱，预期未来收益可能承压。故与未来收益负相关。结构为简单价格关系，方向明确。",
+      "linear_relation": -1
+    },
+    {
+      "name": "alpha50",
+      "expression": "df['EMA_10'] - df['close']",
+      "explanation": "该因子计算10日指数均线与收盘价的差，正值表示价格低于短期均线（偏弱），负值表示价格高于均线（偏强）。因子越大，表示短期弱势，预期未来收益可能较低。故与未来收益负相关。结构为经典均线偏离，方向明确。",
+      "linear_relation": -1
+    }
+  ]
+}

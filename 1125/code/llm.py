@@ -5,13 +5,13 @@ from pathlib import Path
 # ======== 配置区 ========
 
 # 提示词文件（
-PROMPT_PATH = Path("/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/prompt/alpha_prompt.txt")
+PROMPT_PATH = Path("/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/prompt/alpha_prompt_v2.txt")
 
 # 生成的 alpha 因子 Python 文件输出位置
 OUTPUT_ALPHA_PY = Path("/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/1125/generated_alphas.py")
 
 # 保存大模型原始回答的位置（方便之后排查/复现）
-LLM_RESPONSE_PATH = Path("/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/1125/alpha_qwen3_235b_raw_response.json")
+LLM_RESPONSE_PATH = Path("/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/1125/alpha_qwen3_max_raw_response.json")
 
 # （后面你会用到的 CSV，现阶段只是预留，不在本脚本里真的读取）
 CSV_PATH = Path("/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/1125/concept_factor_standardized_by_concept.csv")
@@ -25,10 +25,10 @@ CSV_PATH = Path("/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/1125
 
 # 设置 OpenAI 客户端
 client = OpenAI(
-    api_key="",  # API Key
+    api_key="sk-4442f7376d3d4740848837c522ab62a9",  # API Key
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
-MODEL_NAME = "qwen3-235b-a22b-thinking-2507"
+MODEL_NAME = "qwen3-max"
 
 def load_prompt(prompt_path: Path) -> str:
     """读取提示词文本。"""
@@ -147,6 +147,7 @@ def build_alpha_module_code(alpha_list: list[dict]) -> str:
     lines.append("# 如需调整，请修改提示词并重新生成。")
     lines.append("import numpy as np")
     lines.append("import pandas as pd")
+    lines.aooend("from alpha_ops import (ts_mean, ts_std, ts_max, ts_min, ts_rank,corr, cov, rank, zscore, decay_linear)")
     lines.append("")
     lines.append("")
     lines.append("def compute_alphas(df: pd.DataFrame) -> pd.DataFrame:")
