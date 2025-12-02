@@ -4,45 +4,53 @@ import matplotlib.pyplot as plt
 
 
 # ===============================
-# 1. 前瞻收益计算：fwd_ret_1d
+# 1. 前瞻收益计算：基于开盘价，信号滞后一日进场
 # ===============================
 
-def add_forward_return(
+def add_forward_return_open_delay1(
     df: pd.DataFrame,
-    price_col: str = "close",
     group_col: str = "concept_code",
     horizon: int = 1,
-    out_col: str = None,
+    out_col: str | None = None,
 ) -> pd.DataFrame:
     """
-    在 df 上添加前瞻收益列：fwd_ret_horizon
-    默认计算： (P_{t+h} / P_t - 1)
+    因子日期 = t（用到当日收盘和当日新闻）
+    下单价   = open_{t+1}
+    卖出价   = open_{t+1+horizon}
+
+    当 horizon = 1 时：
+        对于写在 t 日的因子：
+            entry = open_{t+1}
+            exit  = open_{t+2}
+            fwd_ret_1d = exit / entry - 1
 
     参数：
-        df        : 包含价格和 concept_code 的 DataFrame
-        price_col : 价格列名（如 'close'）
+        df        : 包含 open、concept_code、date 的 DataFrame
         group_col : 分组列名（如 'concept_code'）
-        horizon   : 前瞻期（单位：交易日），1 表示 t->t+1 收益
-        out_col   : 输出列名，不填则为 f"fwd_ret_{horizon}d"
+        horizon   : 持有期（单位：交易日）
+        out_col   : 输出列名，不填则为 f"fwd_ret_open_d1_{horizon}d"
 
     返回：
         带有新收益列的 DataFrame（copy 一份）
     """
     if out_col is None:
-        out_col = f"fwd_ret_{horizon}d"
+        out_col = f"fwd_ret_open_d1_{horizon}d"
 
     df = df.copy()
     # 按概念 + 日期排序，保证时间顺序
     df = df.sort_values([group_col, "date"])
 
-    # 未来价格：按概念分组向后 shift
-    future_price = df.groupby(group_col)[price_col].shift(-horizon)
+    # 对每个概念分别在 open 上做 shift
+    open_series = df.groupby(group_col)["open"]
 
-    # 当前价格
-    current_price = df[price_col]
+    # 买入价 = open_{t+1}
+    entry_price = open_series.shift(-1)
 
-    # 前瞻收益：P_{t+h} / P_t - 1
-    df[out_col] = future_price / current_price - 1.0
+    # 卖出价 = open_{t+1+horizon}
+    exit_price = open_series.shift(-(1 + horizon))
+
+    # 前瞻收益：exit / entry - 1
+    df[out_col] = exit_price / entry_price - 1.0
 
     return df
 
@@ -54,7 +62,7 @@ def add_forward_return(
 def calc_daily_ic(
     df: pd.DataFrame,
     factor_col: str,
-    ret_col: str = "fwd_ret_1d",
+    ret_col: str,
     method: str = "spearman",
     date_col: str = "date",
 ) -> pd.Series:
@@ -64,7 +72,7 @@ def calc_daily_ic(
     参数：
         df        : DataFrame，包含因子值和前瞻收益
         factor_col: 因子列名，如 'alpha1'
-        ret_col   : 收益列名，如 'fwd_ret_1d'
+        ret_col   : 收益列名，如 'fwd_ret_open_d1_1d'
         method    : 'spearman'（rank IC）或 'pearson'
         date_col  : 日期列名
 
@@ -104,11 +112,11 @@ def calc_daily_ic(
 
 def summarize_factors_ic(
     df: pd.DataFrame,
-    factor_cols: list,
-    ret_col: str = "fwd_ret_1d",
+    factor_cols: list[str],
+    ret_col: str,
     method: str = "spearman",
     date_col: str = "date",
-):
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     对多个因子计算 daily IC 序列，并给出 IC_mean / IC_std / ICIR / N_days。
 
@@ -135,7 +143,7 @@ def summarize_factors_ic(
         else:
             ic_mean = daily_ic_clean.mean()
             ic_std = daily_ic_clean.std(ddof=1)
-            icir = ic_mean / ic_std if ic_std not in (0, np.nan) and ic_std != 0 else np.nan
+            icir = ic_mean / ic_std if (not pd.isna(ic_std) and ic_std != 0) else np.nan
             n_days = daily_ic_clean.shape[0]
 
         summary_rows.append(
@@ -161,7 +169,7 @@ def summarize_factors_ic(
 
 def plot_ic_time_series(
     daily_ic_panel: pd.DataFrame,
-    factors: list,
+    factors: list[str],
     figsize=(10, 6),
     title_suffix: str = "",
 ):
@@ -224,7 +232,7 @@ def plot_ic_hist(
 # ===============================
 
 if __name__ == "__main__":
-    # === 1) 读取你的数据 ===
+    # === 1) 读取数据 ===
     csv_path = "/home/wangyuting/share/quant/wangyuting/liangjian/llm4text/1125/concept_factor_standardized_by_concept.csv"
     df = pd.read_csv(csv_path)
 
@@ -232,19 +240,20 @@ if __name__ == "__main__":
     if not np.issubdtype(df["date"].dtype, np.datetime64):
         df["date"] = pd.to_datetime(df["date"])
 
-    # === 2) 计算 1 日前瞻收益 ===
-    df = add_forward_return(
+    # === 2) 计算 1 日前瞻收益（信号滞后一日，用开盘价）===
+    # 对写在 t 日的因子，用 open_{t+1} 买入，open_{t+2} 卖出
+    df = add_forward_return_open_delay1(
         df,
-        price_col="close",
         group_col="concept_code",
         horizon=1,
-        out_col="fwd_ret_1d",
+        out_col="fwd_ret_1d",    # 名字仍叫 fwd_ret_1d，方便后面复用
     )
 
-    # 简单看一下
-    print(df[["concept_code", "date", "close", "fwd_ret_1d"]]
-          .sort_values(["concept_code", "date"])
-          .head(10))
+    print(
+        df[["concept_code", "date", "open", "fwd_ret_1d"]]
+        .sort_values(["concept_code", "date"])
+        .head(10)
+    )
 
     # === 3) 找出所有 alpha 列 ===
     factor_cols = [c for c in df.columns if c.startswith("alpha")]
@@ -285,7 +294,7 @@ if __name__ == "__main__":
             daily_ic_panel,
             factors=top_factors,
             figsize=(10, 6),
-            title_suffix="(Top 5 factors by IC_mean)",
+            title_suffix="(Top 5 factors by IC_mean, open-delay1)",
         )
 
         # 画 IC_mean 最大的那个因子的 IC 分布
@@ -294,5 +303,5 @@ if __name__ == "__main__":
             factor=top_factors[0],
             bins=30,
             figsize=(6, 4),
-            title_suffix="(Top 1 factor)",
+            title_suffix="(Top 1 factor, open-delay1)",
         )
